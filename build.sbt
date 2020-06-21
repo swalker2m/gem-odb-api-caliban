@@ -35,7 +35,8 @@ lazy val noPublishSettings = Seq(
 )
 
 lazy val modules: List[ProjectReference] = List(
-  core
+  core,
+  service
 )
 
 lazy val `gem-odb-api` = project.in(file("."))
@@ -50,6 +51,39 @@ lazy val core = project
   .settings(commonSettings)
   .settings(
     name := "gem-odb-api-core",
+    libraryDependencies ++= Seq(
+      "com.github.ghostdogpr" %% "caliban"                % calibanVersion,
+      "com.github.ghostdogpr" %% "caliban-http4s"         % calibanVersion,
+      "com.github.ghostdogpr" %% "caliban-cats"           % calibanVersion,
+      "com.github.ghostdogpr" %% "caliban-client"         % calibanVersion,
+      "dev.zio"               %% "zio-query"              % zioVersion,
+      "edu.gemini"            %% "gsp-core-model"         % gspCoreVersion,
+      "edu.gemini"            %% "gsp-math"               % gspMathVersion,
+      "org.tpolecat"          %% "atto-core"              % attoVersion,
+      "org.typelevel"         %% "cats-core"              % catsVersion,
+      "org.typelevel"         %% "cats-effect"            % catsEffectVersion,
+      "io.circe"              %% "circe-core"             % circeVersion,
+      "io.circe"              %% "circe-literal"          % circeVersion,
+      "io.circe"              %% "circe-optics"           % circeOpticsVersion,
+      "io.circe"              %% "circe-parser"           % circeVersion,
+      "org.typelevel"         %% "jawn-parser"            % jawnVersion,
+      "com.chuusai"           %% "shapeless"              % shapelessVersion,
+      "io.chrisdavenport"     %% "log4cats-slf4j"         % log4catsVersion,
+      "ch.qos.logback"        %  "logback-classic"        % logbackVersion,
+      "org.http4s"            %% "http4s-blaze-server"    % http4sVersion,
+      "org.http4s"            %% "http4s-blaze-client"    % http4sVersion,
+      "org.http4s"            %% "http4s-circe"           % http4sVersion,
+      "org.http4s"            %% "http4s-dsl"             % http4sVersion
+    )
+  )
+
+lazy val service = project
+  .in(file("modules/service"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(core)
+  .settings(commonSettings)
+  .settings(
+    name := "gem-odb-api-service",
     libraryDependencies ++= Seq(
       "com.github.ghostdogpr" %% "caliban"                % calibanVersion,
       "com.github.ghostdogpr" %% "caliban-http4s"         % calibanVersion,
