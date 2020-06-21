@@ -6,8 +6,6 @@ package demo
 import java.util.concurrent._
 import scala.concurrent.ExecutionContext.global
 
-//import cats.effect.{ ExitCode, IO, IOApp }
-//import cats.implicits._
 import cats.effect.{ Blocker, ContextShift, ConcurrentEffect, ExitCode, IO, IOApp, Timer }
 import cats.implicits._
 import fs2.Stream

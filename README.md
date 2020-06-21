@@ -1,4 +1,4 @@
-# gem-odb
+# gem-odb-api
 
 ## Overview
 
