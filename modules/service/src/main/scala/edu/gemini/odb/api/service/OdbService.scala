@@ -3,8 +3,7 @@
 
 package edu.gemini.odb.api.service
 
-import edu.gemini.odb.api.OdbApi
-
+import edu.gemini.odb.api.{OdbApi, OdbDao}
 import caliban.GraphQL.graphQL
 import caliban.{CalibanError, GraphQL, GraphQLResponse, RootResolver}
 import cats.implicits._
@@ -62,17 +61,23 @@ object OdbService {
   implicit val runtime: zio.Runtime[zio.ZEnv] =
     zio.Runtime.default
 
-  def api[F[_]: Effect]: GraphQL[Any] =
-    graphQL(RootResolver(OdbApi.queries[F]))
+  def api[F[_]: Effect](odb: OdbDao[F]): GraphQL[Any] =
+    graphQL(RootResolver(OdbApi.queries(odb)))
 
-  def service[F[_]](implicit F: Effect[F]): OdbService[F] =
-    (op: Option[String], vars: Option[Json], query: String) =>
-      for {
-        _ <- F.delay(println("hi: " + vars + ", " + query))
-        i <- api[F].interpreterAsync[F]
-        r <- i.executeAsync[F](
-          query,
-          operationName = op
-        )
-      } yield Encoder[GraphQLResponse[CalibanError]].apply(r)
+  def service[F[_]](odb: OdbDao[F])(implicit F: Effect[F]): OdbService[F] =
+    new OdbService[F] {
+
+//      val odb: F[Ref[F, OdbDao]] =
+//        Init.setup[F]
+
+      override def runQuery(op: Option[String], vars: Option[Json], query: String): F[Json] =
+        for {
+          _ <- F.delay(println("hi: " + vars + ", " + query))
+          i <- api[F](odb).interpreterAsync[F]
+          r <- i.executeAsync[F](
+            query,
+            operationName = op
+          )
+        } yield Encoder[GraphQLResponse[CalibanError]].apply(r)
+    }
 }

@@ -17,11 +17,11 @@ object OdbApi {
   )
 
   object ProgramView {
-    def fromModel[F[_]: Sync](m: Program): ProgramView[F] =
+    def fromModel[F[_]: Sync](odb: OdbDao[F], m: Program): ProgramView[F] =
       ProgramView(
         m.id,
         m.name,
-        OdbModel.findTargetsForPid(m.id)
+        odb.selectTargetsForProgram(m.id)
       )
   }
 
@@ -32,15 +32,10 @@ object OdbApi {
     program: FindProgramArgs => F[Option[ProgramView[F]]]
   )
 
-  def findProgram[F[_]: Sync](pid: Program.Id): F[Option[ProgramView[F]]] =
-    Sync[F].delay (println(s"finding ${pid.stringValue}")) *>
-      OdbModel.findProgram(pid).map(_.map(ProgramView.fromModel[F]))
+  def findProgram[F[_]: Sync](odb: OdbDao[F], pid: Program.Id): F[Option[ProgramView[F]]] =
+    odb.selectProgram(pid).map(_.map(ProgramView.fromModel[F](odb, _)))
 
-  def queries[F[_]: Sync]: Queries[F] =
-    Queries(args => findProgram(args.id))
-
-//  override def run(args: List[String]): IO[ExitCode] =
-//    IO(println(api.render)).as(ExitCode.Success)
-//    exec[IO](query).as(ExitCode.Success)
+  def queries[F[_]: Sync](odb: OdbDao[F]): Queries[F] =
+    Queries(args => findProgram(odb, args.id))
 
 }
