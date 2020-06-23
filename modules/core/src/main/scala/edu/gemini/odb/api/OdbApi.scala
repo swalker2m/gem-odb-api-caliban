@@ -32,10 +32,12 @@ object OdbApi {
     program: FindProgramArgs => F[Option[ProgramView[F]]]
   )
 
-  def findProgram[F[_]: Sync](odb: OdbDao[F], pid: Program.Id): F[Option[ProgramView[F]]] =
-    odb.selectProgram(pid).map(_.map(ProgramView.fromModel[F](odb, _)))
+  def queries[F[_]: Sync](odb: OdbDao[F]): Queries[F] = {
 
-  def queries[F[_]: Sync](odb: OdbDao[F]): Queries[F] =
-    Queries(args => findProgram(odb, args.id))
+    def findProgram(pid: Program.Id): F[Option[ProgramView[F]]] =
+      odb.selectProgram(pid).map(_.map(ProgramView.fromModel[F](odb, _)))
+
+    Queries(args => findProgram(args.id))
+  }
 
 }

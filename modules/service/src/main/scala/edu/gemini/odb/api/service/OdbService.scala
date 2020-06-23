@@ -66,10 +66,6 @@ object OdbService {
 
   def service[F[_]](odb: OdbDao[F])(implicit F: Effect[F]): OdbService[F] =
     new OdbService[F] {
-
-//      val odb: F[Ref[F, OdbDao]] =
-//        Init.setup[F]
-
       override def runQuery(op: Option[String], vars: Option[Json], query: String): F[Json] =
         for {
           _ <- F.delay(println("hi: " + vars + ", " + query))
