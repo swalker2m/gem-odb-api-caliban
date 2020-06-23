@@ -5,6 +5,7 @@ package edu.gemini.odb.api
 
 import cats.effect.Sync
 import cats.implicits._
+import caliban.CalibanError.ExecutionError
 import caliban.schema.Annotations.GQLName
 
 object OdbApi {
@@ -16,12 +17,12 @@ object OdbApi {
     targets: F[List[TargetView[F]]]
   )
 
-  object ProgramView {
-    def fromModel[F[_]: Sync](odb: OdbDao[F], m: Program): ProgramView[F] =
+  private implicit class ProgramOps(m: Program) {
+    def toView[F[_]: Sync](odb: OdbDao[F]): ProgramView[F] =
       ProgramView(
         m.id,
         m.name,
-        odb.selectTargetsForProgram(m.id).map(_.map(TargetView.fromModel(odb, _)))
+        odb.selectTargetsForProgram(m.id).map(_.map(_.toView(odb)))
       )
   }
 
@@ -33,11 +34,14 @@ object OdbApi {
     tracking: Target.Tracking
   )
 
-  object TargetView {
-    def fromModel[F[_]: Sync](odb: OdbDao[F], m: Target): TargetView[F] =
+  private implicit class TargetOps(m: Target) {
+    def toView[F[_]: Sync](odb: OdbDao[F]): TargetView[F] =
       TargetView(
         m.id,
-        odb.selectProgram(m.pid).map(o => ProgramView.fromModel(odb, o.get)),
+        odb.selectProgram(m.pid).flatMap {
+          case None    => Sync[F].raiseError(ExecutionError(s"Target ${m.id} refers to program ${m.pid} which doesn't exist"))
+          case Some(p) => Sync[F].pure(p.toView(odb))
+        },
         m.name,
         m.tracking
       )
@@ -53,7 +57,7 @@ object OdbApi {
   def queries[F[_]: Sync](odb: OdbDao[F]): Queries[F] = {
 
     def findProgram(pid: Program.Id): F[Option[ProgramView[F]]] =
-      odb.selectProgram(pid).map(_.map(ProgramView.fromModel[F](odb, _)))
+      odb.selectProgram(pid).map(_.map(_.toView(odb)))
 
     Queries(args => findProgram(args.id))
   }
