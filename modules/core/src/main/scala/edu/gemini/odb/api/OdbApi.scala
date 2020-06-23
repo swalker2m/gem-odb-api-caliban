@@ -6,11 +6,12 @@ package edu.gemini.odb.api
 import cats.effect.Sync
 import cats.implicits._
 import caliban.CalibanError.ExecutionError
-import caliban.schema.Annotations.GQLName
+import caliban.schema.Annotations.{GQLDescription, GQLName}
 
 object OdbApi {
 
   @GQLName("Program")
+  @GQLDescription("A single science program")
   final case class ProgramView[F[_]: Sync](
     id:      Program.Id,
     name:    Option[String],
@@ -27,6 +28,7 @@ object OdbApi {
   }
 
   @GQLName("Target")
+  @GQLDescription("Targets have a name an a 'tracking' component which describes how to find their location")
   final case class TargetView[F[_]: Sync](
     id:       Target.Id,
     program:  F[ProgramView[F]],
