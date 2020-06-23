@@ -6,17 +6,16 @@ package edu.gemini.odb.api
 import atto._
 import Atto._
 import caliban.CalibanError.ExecutionError
-import caliban.schema.Annotations.GQLInterface
 import caliban.schema.{ArgBuilder, Schema}
 import cats._
 import cats.implicits._
 
-@GQLInterface
-sealed trait Target {
-  def id:     Target.Id
-  def pid:    Program.Id
-  def name:   String
-}
+final case class Target(
+  id:       Target.Id,
+  pid:      Program.Id,
+  name:     String,
+  tracking: Target.Tracking
+)
 
 object Target {
   val idPrefix: String =
@@ -58,19 +57,14 @@ object Target {
 
   }
 
-  final case class NonSidereal(
-    id:     Target.Id,
-    pid:    Program.Id,
-    name:   String
-  ) extends Target
+  sealed trait Tracking
+
+  case object NonSidereal extends Tracking
 
   final case class Sidereal(
-    id:     Target.Id,
-    pid:    Program.Id,
-    name:   String,
     ra:     String,
     dec:    String
-  ) extends Target
+  ) extends Tracking
   /*
   sealed trait EphemerisKeyType
 

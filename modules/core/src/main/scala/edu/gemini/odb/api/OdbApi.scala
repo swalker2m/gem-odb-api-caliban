@@ -13,7 +13,7 @@ object OdbApi {
   final case class ProgramView[F[_]: Sync](
     id:      Program.Id,
     name:    Option[String],
-    targets: F[List[Target]]
+    targets: F[List[TargetView[F]]]
   )
 
   object ProgramView {
@@ -21,7 +21,25 @@ object OdbApi {
       ProgramView(
         m.id,
         m.name,
-        odb.selectTargetsForProgram(m.id)
+        odb.selectTargetsForProgram(m.id).map(_.map(TargetView.fromModel(odb, _)))
+      )
+  }
+
+  @GQLName("Target")
+  final case class TargetView[F[_]: Sync](
+    id:       Target.Id,
+    program:  F[ProgramView[F]],
+    name:     String,
+    tracking: Target.Tracking
+  )
+
+  object TargetView {
+    def fromModel[F[_]: Sync](odb: OdbDao[F], m: Target): TargetView[F] =
+      TargetView(
+        m.id,
+        odb.selectProgram(m.pid).map(o => ProgramView.fromModel(odb, o.get)),
+        m.name,
+        m.tracking
       )
   }
 

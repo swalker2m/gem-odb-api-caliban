@@ -22,19 +22,23 @@ object Init {
 
   val targets: List[Target] =
     List(
-      Target.Sidereal(
-        id     = Target.Id.unsafeFromInt(0),
-        pid    = pid0,
-        name   = "Betelgeuse",
-        ra     = "05:55:10.305",
-        dec    = "07:24:25.43"
+      Target(
+        id       = Target.Id.unsafeFromInt(0),
+        pid      = pid0,
+        name     = "Betelgeuse",
+        tracking = Target.Sidereal(
+          ra     = "05:55:10.305",
+          dec    = "07:24:25.43"
+        )
       ),
-      Target.Sidereal(
-        id     = Target.Id.unsafeFromInt(1),
-        pid    = pid0,
-        name   = "Rigel",
-        ra     = "05:14:32.272",
-        dec    = "-08:12:05.90"
+      Target(
+        id       = Target.Id.unsafeFromInt(1),
+        pid      = pid0,
+        name     = "Rigel",
+        tracking = Target.Sidereal(
+          ra     = "05:14:32.272",
+          dec    = "-08:12:05.90"
+        )
       )
     )
 
