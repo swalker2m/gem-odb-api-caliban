@@ -6,6 +6,8 @@ package edu.gemini.odb.api.service
 import edu.gemini.odb.api.{OdbApi, OdbDao}
 import caliban.GraphQL.graphQL
 import caliban.{CalibanError, GraphQL, GraphQLResponse, RootResolver}
+import caliban.InputValue
+import cats.data.Validated
 import cats.implicits._
 import cats.effect.{Async, Effect}
 import io.circe._
@@ -66,14 +68,34 @@ object OdbService {
 
   def service[F[_]](odb: OdbDao[F])(implicit F: Effect[F]): OdbService[F] =
     new OdbService[F] {
-      override def runQuery(op: Option[String], vars: Option[Json], query: String): F[Json] =
+
+      // Converts the Json query variable object into a Map[String, InputValue].
+      // Perhaps there is a correct way to do this.
+      def toVariableMap(vars: Option[Json]): F[Map[String, InputValue]] =
+        vars.flatMap(_.asObject).fold(Map.empty[String, InputValue].pure[F]) { jsonObj =>
+
+          val decoding =
+            jsonObj.toList.traverse { case (k, v) =>
+              Decoder[InputValue].decodeJson(v).toValidatedNel.tupleLeft(k)
+            }.map(_.toMap)
+
+          decoding match {
+            case Validated.Invalid(e) => F.raiseError(CalibanError.ParsingError(e.map(_.getMessage()).mkString_("\n")))
+            case Validated.Valid(m)   => m.pure[F]
+          }
+        }
+
+      override def runQuery(op: Option[String], vars: Option[Json], query: String): F[Json] = {
+
         for {
-          _ <- F.delay(println("hi: " + vars + ", " + query))
           i <- api[F](odb).interpreterAsync[F]
+          v <- toVariableMap(vars)
           r <- i.executeAsync[F](
             query,
-            operationName = op
+            operationName = op,
+            variables = v
           )
         } yield Encoder[GraphQLResponse[CalibanError]].apply(r)
+      }
     }
 }

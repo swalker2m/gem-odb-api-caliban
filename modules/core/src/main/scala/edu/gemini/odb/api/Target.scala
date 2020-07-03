@@ -5,10 +5,13 @@ package edu.gemini.odb.api
 
 import atto._
 import Atto._
+import caliban.InputValue
 import caliban.CalibanError.ExecutionError
 import caliban.schema.{ArgBuilder, Schema}
 import cats._
 import cats.implicits._
+import gem.EphemerisKey
+import gem.`enum`.EphemerisKeyType
 
 final case class Target(
   id:       Target.Id,
@@ -59,7 +62,77 @@ object Target {
 
   sealed trait Tracking
 
-  case object NonSidereal extends Tracking
+//  implicit val ephemerisKeySchema: Schema[Any, EphemerisKey] =
+//    Schema.stringSchema.contramap(EphemerisKey.fromString.reverseGet)
+//
+  final case class NonSidereal(
+    key:   EphemerisKeyType,
+    des:   String,
+  ) extends Tracking
+
+  final case class NonSiderealInput(
+    key:   EphemerisKeyType,
+    des:   String
+  ) {
+    def toNonSidereal: NonSidereal =
+      NonSidereal(key, des)
+  }
+
+  object NonSiderealInput {
+
+    // Performs validation on the ephemeris key des
+    implicit def nonSiderealInputArgBuilder(implicit kb: ArgBuilder[EphemerisKeyType], db: ArgBuilder[String]): ArgBuilder[NonSiderealInput] = {
+      case InputValue.ObjectValue(fields) =>
+        for {
+          kv <- fields.get("key").toRight(ExecutionError("NonSiderealInput object missing `key` field"))
+          k  <- kb.build(kv)
+          dv <- fields.get("des").toRight(ExecutionError("NonSiderealInput object missing `des` field"))
+          d  <- db.build(dv)
+          _  <- EphemerisKey.fromTypeAndDes.getOption((k, d)).toRight(ExecutionError(s"Invalid NonSiderealInput type and des combination: ${k.shortName}, $d"))
+        } yield NonSiderealInput(k, d)
+
+      case other                          =>
+        Left(ExecutionError(s"Can't build a NonSiderealInput from input $other"))
+    }
+  }
+
+  final case class Coordinates(
+    ra:                 String,
+    raMicroarcseconds:  Long,
+    raHours:            BigDecimal,
+    dec:                String,
+    decMicroarcseconds: Long,
+    decDegrees:         BigDecimal
+  )
+
+  /*
+  final case class CoordinatesInput(
+    ra:                 Option[String],
+    raMicroarcseconds:  Option[Long],
+    raHours:            Option[BigDecimal],
+    dec:                Option[String],
+    decMicroarcseconds: Option[Long],
+    decDegrees:         Option[BigDecimal]
+  )
+
+  object CoordinatesInput {
+
+    implicit def coordinatesInput(implicit sb: ArgBuilder[String], lb: ArgBuilder[Long], db: ArgBuilder[BigDecimal]): ArgBuilder[CoordinatesInput] = {
+      case InputValue.ObjectValue(fields) =>
+        for {
+          ras  <- fields.get("ra")
+          ral  <- fields.get("raMicroarcseconds")
+          rad  <- fields.get("raHours")
+          ra    = {
+
+          }
+        }
+      case other                          =>
+        Left(ExecutionError(s"Can't build CoordinatesInput from input $other"))
+    }
+
+  }
+   */
 
   final case class Sidereal(
     ra:     String,
