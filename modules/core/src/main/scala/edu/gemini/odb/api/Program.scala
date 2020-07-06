@@ -11,7 +11,6 @@ import cats._
 import cats.implicits._
 
 final case class Program(
-  id:   Program.Id,
   name: Option[String]
 )
 
@@ -52,8 +51,14 @@ object Program {
       ArgBuilder.string.flatMap { s =>
         Program.Id.fromString(s).toRight(ExecutionError(s"Invalid program id '$s''"))
       }
+  }
 
+  final case class CreateProgram(
+    name: Option[String],
+  ) {
 
+    val toProgram: Program =
+      Program(name)
   }
 
 }

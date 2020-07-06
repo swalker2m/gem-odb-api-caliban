@@ -43,7 +43,8 @@ object Main extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] =
     for {
-      odb <- Odb.create[IO](Init.tables)
+      odb <- Odb.create[IO]
+      _   <- Init.initialize[IO].apply(odb)
       _   <- stream[IO](odb).compile.drain
     } yield ExitCode.Success
 }

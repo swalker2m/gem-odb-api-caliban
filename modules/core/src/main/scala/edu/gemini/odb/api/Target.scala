@@ -3,18 +3,17 @@
 
 package edu.gemini.odb.api
 
+import gem.EphemerisKey
+import gem.`enum`.EphemerisKeyType
+import gsp.math
 import atto._
 import Atto._
-import caliban.InputValue
 import caliban.CalibanError.ExecutionError
 import caliban.schema.{ArgBuilder, Schema}
 import cats._
 import cats.implicits._
-import gem.EphemerisKey
-import gem.`enum`.EphemerisKeyType
 
 final case class Target(
-  id:       Target.Id,
   pid:      Program.Id,
   name:     String,
   tracking: Target.Tracking
@@ -60,98 +59,108 @@ object Target {
 
   }
 
+  object parse {
+
+    def ephemerisKey(fieldName: String, key: gem.`enum`.EphemerisKeyType, input: String): Result[gem.EphemerisKey] =
+      EphemerisKey
+        .fromTypeAndDes
+        .getOption((key, input))
+        .toValidNec(
+          Error.InvalidField(fieldName, input, s"Invalid description for ephemeris key type `${key.shortName}`")
+        )
+
+    def ra(fieldName: String, input: String): Result[math.RightAscension] =
+      math.RightAscension
+        .fromStringHMS
+        .getOption(input)
+        .toValidNec(
+          Error.InvalidField(fieldName, input, "Expected right ascension in format HH:MM:SS.SSS")
+        )
+
+    def dec(fieldName: String, input: String): Result[math.Declination] =
+      math.Declination
+        .fromStringSignedDMS
+        .getOption(input)
+        .toValidNec(
+          Error.InvalidField(fieldName, input, "Expected declination in format [+/-]DD:MM:SS:SS.SSS")
+        )
+
+  }
+
   sealed trait Tracking
 
-//  implicit val ephemerisKeySchema: Schema[Any, EphemerisKey] =
-//    Schema.stringSchema.contramap(EphemerisKey.fromString.reverseGet)
-//
   final case class NonSidereal(
     key:   EphemerisKeyType,
     des:   String,
   ) extends Tracking
 
-  final case class NonSiderealInput(
-    key:   EphemerisKeyType,
-    des:   String
+  object NonSidereal {
+    def fromEphemerisKey(k: gem.EphemerisKey): NonSidereal =
+      NonSidereal(
+        k.keyType,
+        k.des
+      )
+  }
+
+  final case class CreateNonSiderealTarget(
+    pid:  Program.Id,
+    name: String,
+    key:  EphemerisKeyType,
+    des:  String
   ) {
-    def toNonSidereal: NonSidereal =
-      NonSidereal(key, des)
+
+    val toEphemerisKey: Result[gem.EphemerisKey] =
+      parse.ephemerisKey("des", key, des)
+
+    val toTarget: Result[Target] =
+      toEphemerisKey.map { k =>
+        Target(
+          pid,
+          name,
+          NonSidereal.fromEphemerisKey(k)
+        )
+      }
   }
-
-  object NonSiderealInput {
-
-    // Performs validation on the ephemeris key des
-    implicit def nonSiderealInputArgBuilder(implicit kb: ArgBuilder[EphemerisKeyType], db: ArgBuilder[String]): ArgBuilder[NonSiderealInput] = {
-      case InputValue.ObjectValue(fields) =>
-        for {
-          kv <- fields.get("key").toRight(ExecutionError("NonSiderealInput object missing `key` field"))
-          k  <- kb.build(kv)
-          dv <- fields.get("des").toRight(ExecutionError("NonSiderealInput object missing `des` field"))
-          d  <- db.build(dv)
-          _  <- EphemerisKey.fromTypeAndDes.getOption((k, d)).toRight(ExecutionError(s"Invalid NonSiderealInput type and des combination: ${k.shortName}, $d"))
-        } yield NonSiderealInput(k, d)
-
-      case other                          =>
-        Left(ExecutionError(s"Can't build a NonSiderealInput from input $other"))
-    }
-  }
-
-  final case class Coordinates(
-    ra:                 String,
-    raMicroarcseconds:  Long,
-    raHours:            BigDecimal,
-    dec:                String,
-    decMicroarcseconds: Long,
-    decDegrees:         BigDecimal
-  )
-
-  /*
-  final case class CoordinatesInput(
-    ra:                 Option[String],
-    raMicroarcseconds:  Option[Long],
-    raHours:            Option[BigDecimal],
-    dec:                Option[String],
-    decMicroarcseconds: Option[Long],
-    decDegrees:         Option[BigDecimal]
-  )
-
-  object CoordinatesInput {
-
-    implicit def coordinatesInput(implicit sb: ArgBuilder[String], lb: ArgBuilder[Long], db: ArgBuilder[BigDecimal]): ArgBuilder[CoordinatesInput] = {
-      case InputValue.ObjectValue(fields) =>
-        for {
-          ras  <- fields.get("ra")
-          ral  <- fields.get("raMicroarcseconds")
-          rad  <- fields.get("raHours")
-          ra    = {
-
-          }
-        }
-      case other                          =>
-        Left(ExecutionError(s"Can't build CoordinatesInput from input $other"))
-    }
-
-  }
-   */
 
   final case class Sidereal(
     ra:     String,
     dec:    String
   ) extends Tracking
-  /*
-  sealed trait EphemerisKeyType
 
-  object EphemerisKeyType {
-    case object AsteroidNew  extends EphemerisKeyType
-    case object AsteroidOld  extends EphemerisKeyType
-    case object Comet        extends EphemerisKeyType
-    case object MajorBody    extends EphemerisKeyType
-    case object UserSupplied extends EphemerisKeyType
+  object Sidereal {
+    def fromProperMotion(p: math.ProperMotion): Sidereal =
+      Sidereal(
+        math.RightAscension.fromStringHMS.reverseGet(p.baseCoordinates.ra),
+        math.Declination.fromStringSignedDMS.reverseGet(p.baseCoordinates.dec)
+      )
   }
 
-  final case class EphemerisKey(
+  final case class CreateSiderealTarget(
+    pid:  Program.Id,
+    name: String,
+    ra:   String,
+    dec:  String
+  ) {
 
-  )
-   */
+    val toProperMotion: Result[math.ProperMotion] =
+      (parse.ra("ra", ra),
+       parse.dec("dec", dec)
+      ).mapN(
+        (ra, dec) =>
+          math.ProperMotion(
+            math.Coordinates(ra, dec), math.Epoch.J2000, None, None, None
+          )
+      )
+
+    val toTarget: Result[Target] =
+      toProperMotion.map { pm =>
+        Target(
+          pid,
+          name,
+          Sidereal.fromProperMotion(pm)
+        )
+      }
+
+  }
 
 }

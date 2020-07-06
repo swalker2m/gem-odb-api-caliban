@@ -8,8 +8,19 @@ package edu.gemini.odb.api
  */
 trait OdbDao[F[_]] {
 
+  def selectPrograms: F[List[(Program.Id, Program)]]
+
   def selectProgram(id: Program.Id): F[Option[Program]]
 
-  def selectTargetsForProgram(id: Program.Id): F[List[Target]]
+  def createProgram(input: Program.CreateProgram): F[(Program.Id, Program)]
 
+  def selectTargets: F[List[(Target.Id, Target)]]
+
+  def selectTarget(id: Target.Id): F[Option[Target]]
+
+  def selectTargetsForProgram(id: Program.Id): F[List[(Target.Id, Target)]]
+
+  def createSiderealTarget(input: Target.CreateSiderealTarget): F[(Target.Id, Target)]
+
+  def deleteTarget(id: Target.Id): F[Option[Target]]
 }
