@@ -1,6 +1,6 @@
-# gem-odb-api
+# gem-odb-api-caliban
 
 ## Overview
 
-* For now, just exploring the ODB GraphQL API.
+* Exploring the ODB GraphQL API with Caliban.  This project is a deadend.
 
